@@ -40,6 +40,7 @@ const Orders = ({url}) => {
       <h3>Order Page</h3>
       <div className="order-list">
         {orders.map((order,index) =>{
+          return (
           <div key={index} className="order-item">
             <img src={assets.parcel_icon} alt="" />
             <div>
@@ -67,6 +68,7 @@ const Orders = ({url}) => {
               <option value="Delivered">Delivered</option>
             </select>
           </div>
+          );
         })}
       </div>
     </div>
