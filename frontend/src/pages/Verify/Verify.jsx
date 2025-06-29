@@ -19,26 +19,41 @@ const Verify = () => {
     try {
       // For Razorpay, we need to verify with signature
       if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
-        // This case should not happen in normal flow since verification is done in PlaceOrder
-        // But keeping it as fallback
+        // Get orderData from localStorage
+        const storedOrderData = localStorage.getItem("pendingOrderData");
+        let orderData = null;
+
+        if (storedOrderData) {
+          try {
+            orderData = JSON.parse(storedOrderData);
+          } catch (error) {
+            console.error("Error parsing stored order data:", error);
+          }
+        }
+
+        if (!orderData) {
+          console.error("No order data available for verification");
+          navigate("/cart");
+          return;
+        }
+
         const response = await axios.post(
           url + "/api/order/verify",
           {
             razorpay_order_id,
             razorpay_payment_id,
             razorpay_signature,
-            orderData: {
-              // This would need to be passed via URL params or stored temporarily
-              // For now, redirect to cart if this happens
-            },
+            orderData: orderData,
           },
           { headers: { token } }
         );
 
         if (response.data.success) {
+          localStorage.removeItem("pendingOrderData");
           navigate("/myorders");
         } else {
-          navigate("/");
+          localStorage.removeItem("pendingOrderData");
+          navigate("/cart");
         }
       } else if (success && orderId) {
         // Fallback for old verification method (Stripe)
@@ -57,7 +72,9 @@ const Verify = () => {
       }
     } catch (error) {
       console.error("Verification error:", error);
-      navigate("/");
+      // Clear the stored order data on error
+      localStorage.removeItem("pendingOrderData");
+      navigate("/cart");
     }
   };
 

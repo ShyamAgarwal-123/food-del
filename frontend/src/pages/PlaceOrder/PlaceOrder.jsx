@@ -43,16 +43,21 @@ const PlaceOrder = () => {
     });
   };
 
-  const displayRazorpay = async (razorpayResponse) => {
+  const displayRazorpay = async (razorpayResponse, orderData) => {
     const res = await loadScript(
       "https://checkout.razorpay.com/v1/checkout.js"
     );
+    console.log(res);
 
     if (!res) {
       alert("Razorpay SDK failed to load");
       setLoading(false);
       return;
     }
+    console.log(orderData);
+
+    // Store orderData in localStorage for verification fallback
+    localStorage.setItem("pendingOrderData", JSON.stringify(orderData));
 
     const options = {
       key: razorpayResponse.key,
@@ -75,6 +80,8 @@ const PlaceOrder = () => {
           );
 
           if (verifyResponse.data.success) {
+            // Clear the stored order data
+            localStorage.removeItem("pendingOrderData");
             alert("Payment successful!");
             navigate("/myorders");
           } else {
@@ -83,14 +90,21 @@ const PlaceOrder = () => {
           }
         } catch (error) {
           console.error("Payment verification error:", error);
-          alert("Payment verification failed!");
-          navigate("/cart");
+          // If verification fails, redirect to verify page with params
+          const params = new URLSearchParams({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+          navigate(`/verify?${params.toString()}`);
         } finally {
           setLoading(false);
         }
       },
       modal: {
         ondismiss: function () {
+          // Clear the stored order data if payment is cancelled
+          localStorage.removeItem("pendingOrderData");
           alert("Payment cancelled. You can try again.");
           setLoading(false);
         },
@@ -135,11 +149,14 @@ const PlaceOrder = () => {
         amount: getTotalCartAmount() + 2,
       };
 
-      setOrderData({
+      const orderDataWithTimestamp = {
         items: orderItems,
         amount: getTotalCartAmount() + 2,
         address: data,
-      });
+        timestamp: Date.now(), // Add timestamp for cleanup
+      };
+
+      setOrderData(orderDataWithTimestamp);
 
       let response = await axios.post(
         url + "/api/order/place",
@@ -148,7 +165,7 @@ const PlaceOrder = () => {
       );
 
       if (response.data.success) {
-        await displayRazorpay(response.data);
+        await displayRazorpay(response.data, orderDataWithTimestamp);
       } else {
         alert("Error creating order");
         setLoading(false);

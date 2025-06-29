@@ -54,8 +54,30 @@ const verifyOrder = async (req, res) => {
     razorpay_signature,
     orderData,
   } = req.body;
+  console.log(req.body);
 
   try {
+    // Validate required fields
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.json({
+        success: false,
+        message: "Missing Razorpay payment details",
+      });
+    }
+
+    // Validate orderData
+    if (
+      !orderData ||
+      !orderData.items ||
+      !orderData.amount ||
+      !orderData.address
+    ) {
+      return res.json({
+        success: false,
+        message: "Missing order data",
+      });
+    }
+
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_SECRET)
       .update(razorpay_order_id + "|" + razorpay_payment_id)
